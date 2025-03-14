@@ -82,7 +82,7 @@ void setup(void) {
 
 
   // Bring up the WiFi connection
-  networkLayer.init(wlan_ssid, wlan_password, "esp32-office", mqtt_server, mqtt_port, mqtt_username, mqtt_password);
+  networkLayer.init(wlan_ssid, wlan_password, device_name, mqtt_server, mqtt_port, mqtt_username, mqtt_password);
   Serial.print("Setup finished");
   delay(4000);
 }
@@ -95,21 +95,53 @@ void turnInto3v(uint8_t pin) {
 // -------------------------------------------------------------------------
 // Main loop
 // -------------------------------------------------------------------------
+unsigned long currentMillis;
+
+unsigned long lastSendMqttConfigMillis;
+const unsigned long sendMqttConfigPeriod = (60 * 1000) + 1;
+
+unsigned long lastReadValueMillis;
+const unsigned long readValuePeriod = 5 * 1000;
+const unsigned int mqttSendValueMultiplier = 2;
+unsigned int readValueDidtNotSendMqtt = 0;
+
+const unsigned long drawDelay = 500;
+unsigned long drawAfterMillis;
+
 void loop() {
   networkLayer.loop();
 
-  error = sensor.readMeasurement(co2Concentration, temperature, relativeHumidity);
-  if (error != NO_ERROR) {
-    lifeInfo.drawError(error);
-  } else {
+  currentMillis = millis();
 
-    lifeInfo.draw(temperature, relativeHumidity, co2Concentration);
-
-    co2Graph.addValue(co2Concentration);
-    co2Graph.draw();
-
-    networkLayer.sendTempViaMqtt(temperature, relativeHumidity, co2Concentration);
+  if (currentMillis - lastSendMqttConfigMillis >= sendMqttConfigPeriod) {
+    networkLayer.sendMqttConfig();
+    lastSendMqttConfigMillis = currentMillis;
   }
 
-  delay(5000);
+  if (currentMillis - lastReadValueMillis >= readValuePeriod) {
+    error = sensor.readMeasurement(co2Concentration, temperature, relativeHumidity);
+    if (error != NO_ERROR) {
+      lifeInfo.drawError(error);
+    } else {
+  
+      lifeInfo.draw(temperature, relativeHumidity, co2Concentration);
+  
+      co2Graph.addValue(co2Concentration);
+  
+      readValueDidtNotSendMqtt++;
+      if (readValueDidtNotSendMqtt >= mqttSendValueMultiplier) {
+        networkLayer.sendViaMqtt(temperature, relativeHumidity, co2Concentration);
+        readValueDidtNotSendMqtt = 0;
+      }
+    }
+
+    lastReadValueMillis = currentMillis;
+    drawAfterMillis = currentMillis + drawDelay;
+  }
+
+  if (drawAfterMillis > 0 && drawAfterMillis < currentMillis) {
+    // Drawing interferes with network sending.
+    co2Graph.draw();
+    drawAfterMillis = 0;
+  }
 }

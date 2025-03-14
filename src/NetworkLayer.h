@@ -11,10 +11,8 @@ class NetworkLayer {
     Adafruit_ST7735 &tft;
 
     unsigned long startTime;
-    unsigned long previousMillis;
-    unsigned long mqttSendInterval = 10 * 1000;  // 10 sec
 
-    String clientId;
+    const char *clientId;
     const char *mqttUsername;
     const char *mqttPassword;
 
@@ -26,10 +24,12 @@ class NetworkLayer {
 
   public:
   NetworkLayer(Adafruit_ST7735 &tft);
-  void init(const char* ssid, const char *passphrase, String clientId, const char *mqttServer, int mqttPort, const char *mqttUsername, const char *mqttPassword);
+  void init(const char* ssid, const char *passphrase, const char *clientId, const char *mqttServer, int mqttPort, const char *mqttUsername, const char *mqttPassword);
   void ssidScan();
-  void loop();
-  void sendTempViaMqtt(float temperature, float relativeHumidity, uint16_t co2Concentration);
+  boolean loop();
+  void sendViaMqtt(float temperature, float relativeHumidity, uint16_t co2Concentration);
+  void sendMqttConfig();
+  void sendOnline();
 };
 
 
