@@ -119,7 +119,7 @@ void NetworkLayer::reconnect() {
           mqttUsername,
           mqttPassword,
           ("homeassistant/sensor/" + String(clientId) + "/availability").c_str(),
-          MQTTQOS1,
+          MQTT_QOS1,
           true,
           "offline"
         )) {
